@@ -17,16 +17,17 @@ loop do
   params  = {}
   cookies = {}
 
-  # Extract Request verb and path
-  first_line = client.gets
-  puts first_line
-
-  if first_line
-    request_verb, request_path, _ = first_line.split
-  end
+  request_verb = ''
+  request_path = ''
 
   while line = client.gets
     break if line == "\r\n"
+
+    # Extract Request verb and path
+    if line.match(/HTTP\/.*?/)
+      request_verb, request_path, _ = line.split
+    end
+
     request += line
 
     # Request headers
@@ -86,6 +87,12 @@ loop do
 </form>
       }
     end
+  else
+    response_status = 404
+
+    response_body = %{
+<h1>Not Found</h1>
+    }
   end
 
   response_headers_str =
