@@ -9,6 +9,25 @@ services:
       - rubygems:/usr/local/bundle
     ports:
       - "3000:3000"
+    networks:
+      - yatax
+
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: yatax
+      POSTGRES_USER: yatax
+      POSTGRES_PASSWORD: yatax
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./db:/app/db
+      - pgdata:/var/lib/postgresql/data/pgdata
+    networks:
+      - yatax
 
 volumes:
   rubygems:
+  pgdata:
+
+networks:
+  yatax:

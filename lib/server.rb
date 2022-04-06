@@ -1,10 +1,20 @@
 require 'socket'
 require 'cgi'
+require 'pg'
+require 'byebug'
 
 PORT = 3000
 socket = TCPServer.new('0.0.0.0', PORT)
 
 puts "Listening to the port #{PORT}..."
+
+# Database connection
+db_connection = PG.connect(
+  host: 'yataxdb',
+  user: 'yatax',
+  password: 'yatax',
+  dbname: 'yatax',
+)
 
 loop do
   # Wait for a new TCP connection..."
@@ -66,10 +76,30 @@ loop do
     response_headers['Location'] = "http://localhost:3000/"
   elsif request_verb == 'POST' && request_path == '/login'
     email = params['email']
-    response_status = 301
+    password = params['password']
 
-    response_headers['Set-Cookie'] = "email=#{email}; path=/; HttpOnly"
-    response_headers['Location'] = "http://localhost:3000/"
+    # Check user and password in the database
+    query = %{
+SELECT id FROM users
+WHERE email = '#{email}' AND password = crypt('#{password}', password)
+    }
+
+    result = db_connection.exec(query).to_a.first
+
+    if result
+      response_status = 301
+
+      response_headers['Set-Cookie'] = "email=#{email}; path=/; HttpOnly"
+      response_headers['Location'] = "http://localhost:3000/"
+    else
+      # Incorrect Email/Password
+      response_status = 401
+
+      response_body = %{
+<h1>Unauthorized</h1>
+<a href="/">Home</a>
+      }
+    end
   elsif request_verb == 'GET' && request_path == '/'
     if email = cookies['email']
       response_body = %{
