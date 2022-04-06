@@ -17,6 +17,14 @@ loop do
   params  = {}
   cookies = {}
 
+  # Extract Request verb and path
+  first_line = client.gets
+  puts first_line
+
+  if first_line
+    request_verb, request_path, _ = first_line.split
+  end
+
   while line = client.gets
     break if line == "\r\n"
     request += line
@@ -45,20 +53,47 @@ loop do
     cookies[cookie_name] = CGI.unescape(cookie_value)
   end
 
-  cookies['email'] ||= params['email']
-
   # Response
-  response = %{
-HTTP/2.0 200\r\n
-Content-Type: text/html\r\n
-Set-Cookie: email=#{cookies['email']}; HttpOnly\r\n
-\r\n
-<form action="/" method="POST">
+  response_headline = "HTTP/2.0"
+  response_status   = 200
+  response_headers  = { 'Content-Type' => 'text/html' }
+
+  if request_verb == 'POST' && request_path == '/logout'
+    response_status = 301
+
+    response_headers['Set-Cookie'] = "email=; path=/; HttpOnly; Expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    response_headers['Location'] = "http://localhost:3000/"
+  elsif request_verb == 'POST' && request_path == '/login'
+    email = params['email']
+    response_status = 301
+
+    response_headers['Set-Cookie'] = "email=#{email}; path=/; HttpOnly"
+    response_headers['Location'] = "http://localhost:3000/"
+  elsif request_verb == 'GET' && request_path == '/'
+    if email = cookies['email']
+      response_body = %{
+<h1>Hello, #{email}</h1>
+<form action="/logout" method="POST">
+  <input type="submit" value="Logout" />
+</form>
+      }
+    else
+      response_body = %{
+<form action="/login" method="POST">
   <input type="text" placeholder="Email" name="email"/>
   <input type="password" placeholder="Password" name="password"/>
   <input type="submit" value="Login"/>
 </form>
-}
+      }
+    end
+  end
+
+  response_headers_str =
+    response_headers.reduce('') do |acc, (key, value)|
+      acc += "#{key}: #{value}\r\n"; acc
+    end
+
+  response = "#{response_headline} #{response_status}\r\n#{response_headers_str}\r\n#{response_body}"
 
   client.puts(response.strip.gsub(/\n+/, "\n"))
 
