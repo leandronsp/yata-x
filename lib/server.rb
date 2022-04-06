@@ -81,10 +81,11 @@ loop do
     # Check user and password in the database
     query = %{
 SELECT id FROM users
-WHERE email = '#{email}' AND password = crypt('#{password}', password)
+WHERE email = $1 AND password = crypt($2, password)
     }
 
-    result = db_connection.exec(query).to_a.first
+    safe_query = db_connection.escape_string(query)
+    result = db_connection.exec(safe_query, [email, password]).to_a.first
 
     if result
       response_status = 301
